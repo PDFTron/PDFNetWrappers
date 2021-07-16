@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Copyright (c) 2001-2020 by PDFTron Systems Inc. All Rights Reserved.
+# Copyright (c) 2001-2021 by PDFTron Systems Inc. All Rights Reserved.
 # Consult LICENSE.txt regarding license information.
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ def VerifySimple(in_docpath, in_public_key_file_path):
 	opts = VerificationOptions(VerificationOptions.e_compatibility_and_archiving)
 
 	# Add trust root to store of trusted certificates contained in VerificationOptions.
-	opts.AddTrustedCertificate(in_public_key_file_path)
+	opts.AddTrustedCertificate(in_public_key_file_path, VerificationOptions.e_default_trust | VerificationOptions.e_certification_trust)
 
 	result = doc.VerifySignedDigitalSignatures(opts)
 		
@@ -104,7 +104,7 @@ def VerifyAllAndPrint(in_docpath, in_public_key_file_path):
 	file_sz = trusted_cert_file.FileSize()
 	file_reader = FilterReader(trusted_cert_file)
 	trusted_cert_buf = file_reader.Read(file_sz)
-	opts.AddTrustedCertificate(trusted_cert_buf, len(trusted_cert_buf))
+	opts.AddTrustedCertificate(trusted_cert_buf, len(trusted_cert_buf), VerificationOptions.e_default_trust | VerificationOptions.e_certification_trust)
 
 	# Iterate over the signatures and verify all of them.
 	digsig_fitr = doc.GetDigitalSignatureFieldIterator()
@@ -219,7 +219,7 @@ def CertifyPDF(in_docpath,
 	page1 = doc.GetPage(1)
 
 	# Create a text field that we can lock using the field permissions feature.
-	annot1 = TextWidget.Create(doc, Rect(50, 550, 350, 600), "asdf_test_field")
+	annot1 = TextWidget.Create(doc, Rect(143, 440, 350, 460), "asdf_test_field")
 	page1.AnnotPushBack(annot1)
 
 	# Create a new signature form field in the PDFDoc. The name argument is optional;
@@ -227,7 +227,7 @@ def CertifyPDF(in_docpath,
 	# Acrobat doesn't show digsigfield in side panel if it's without a widget. Using a
 	# Rect with 0 width and 0 height, or setting the NoPrint/Invisible flags makes it invisible. 
 	certification_sig_field = doc.CreateDigitalSignatureField(in_cert_field_name)
-	widgetAnnot = SignatureWidget.Create(doc, Rect(0, 100, 200, 150), certification_sig_field)
+	widgetAnnot = SignatureWidget.Create(doc, Rect(143, 287, 219, 306), certification_sig_field)
 	page1.AnnotPushBack(widgetAnnot)
 
 	# (OPTIONAL) Add an appearance to the signature field.
@@ -403,7 +403,7 @@ def TimestampAndEnableLTV(in_docpath,
 	in_outpath):
 	doc = PDFDoc(in_docpath)
 	doctimestamp_signature_field = doc.CreateDigitalSignatureField()
-	tst_config = TimestampingConfiguration("http://adobe-timestamp.globalsign.com/?signature=sha2")
+	tst_config = TimestampingConfiguration("http://rfc3161timestamp.globalsign.com/advanced")
 	opts = VerificationOptions(VerificationOptions.e_compatibility_and_archiving)
 #	It is necessary to add to the VerificationOptions a trusted root certificate corresponding to 
 #	the chain used by the timestamp authority to sign the timestamp token, in order for the timestamp
@@ -471,69 +471,69 @@ def main():
 	# (Must be done before calling CertifyOnNextSave/SignOnNextSave/WithCustomHandler.)
 	# Open an existing PDF
 	try:
-		doc = PDFDoc(input_path + 'tiger.pdf')
+		doc = PDFDoc(input_path + 'waiver.pdf')
 		
-		widgetAnnotApproval = SignatureWidget.Create(doc, Rect(300, 300, 500, 200), 'PDFTronApprovalSig')
+		widgetAnnotApproval = SignatureWidget.Create(doc, Rect(300, 287, 376, 306), 'PDFTronApprovalSig')
 		page1 = doc.GetPage(1)
 		page1.AnnotPushBack(widgetAnnotApproval)
-		doc.Save(output_path + 'tiger_withApprovalField_output.pdf', SDFDoc.e_remove_unused)
+		doc.Save(output_path + 'waiver_withApprovalField_output.pdf', SDFDoc.e_remove_unused)
 	except Exception as e:
 		print(e.args)
 		result = False
 	#################### TEST 1: certify a PDF.
 	try:
-		CertifyPDF(input_path + 'tiger_withApprovalField.pdf',
+		CertifyPDF(input_path + 'waiver_withApprovalField.pdf',
 			'PDFTronCertificationSig',
 			input_path + 'pdftron.pfx',
 			'password',
 			input_path + 'pdftron.bmp',
-			output_path + 'tiger_withApprovalField_certified_output.pdf')
-		PrintSignaturesInfo(output_path + 'tiger_withApprovalField_certified_output.pdf')
+			output_path + 'waiver_withApprovalField_certified_output.pdf')
+		PrintSignaturesInfo(output_path + 'waiver_withApprovalField_certified_output.pdf')
 	except Exception as e:
 		print(e.args)
 		result = False
-	#################### TEST 2: sign a PDF with a certification and an unsigned signature field in it.
+	#################### TEST 2: approval-sign an existing, unsigned signature field in a PDF that already has a certified signature field.
 	try:
-		SignPDF(input_path + 'tiger_withApprovalField_certified.pdf',
+		SignPDF(input_path + 'waiver_withApprovalField_certified.pdf',
 			'PDFTronApprovalSig',
 			input_path + 'pdftron.pfx',
 			'password',
 			input_path + 'signature.jpg',
-			output_path + 'tiger_withApprovalField_certified_approved_output.pdf')
-		PrintSignaturesInfo(output_path + 'tiger_withApprovalField_certified_approved_output.pdf')
+			output_path + 'waiver_withApprovalField_certified_approved_output.pdf')
+		PrintSignaturesInfo(output_path + 'waiver_withApprovalField_certified_approved_output.pdf')
 	except Exception as e:
 		print(e.args)
 		result = False
 	#################### TEST 3: Clear a certification from a document that is certified and has an approval signature.
 	try:
-		ClearSignature(input_path + 'tiger_withApprovalField_certified_approved.pdf',
+		ClearSignature(input_path + 'waiver_withApprovalField_certified_approved.pdf',
 			'PDFTronCertificationSig',
-			output_path + 'tiger_withApprovalField_certified_approved_certcleared_output.pdf')
-		PrintSignaturesInfo(output_path + 'tiger_withApprovalField_certified_approved_certcleared_output.pdf')
+			output_path + 'waiver_withApprovalField_certified_approved_certcleared_output.pdf')
+		PrintSignaturesInfo(output_path + 'waiver_withApprovalField_certified_approved_certcleared_output.pdf')
 	except Exception as e:
 		print(e.args)
 		result = False
 
 	#################### TEST 4: Verify a document's digital signatures.
 	try:
-		if not VerifyAllAndPrint(input_path + "tiger_withApprovalField_certified_approved.pdf", input_path + "pdftron.cer"):
+		if not VerifyAllAndPrint(input_path + "waiver_withApprovalField_certified_approved.pdf", input_path + "pdftron.cer"):
 			result = False
 	except Exception as e:
 		print(e.args)
 		result = False
 	#################### TEST 5: Verify a document's digital signatures in a simple fashion using the document API.
 	try:
-		if not VerifySimple(input_path + 'tiger_withApprovalField_certified_approved.pdf', input_path + 'pdftron.cer'):
+		if not VerifySimple(input_path + 'waiver_withApprovalField_certified_approved.pdf', input_path + 'pdftron.cer'):
 			result = False
 	except Exception as e:
 		print(e.args)
 		result = False
 	#################### TEST 6: Timestamp a document, then add Long Term Validation (LTV) information for the DocTimeStamp.
 	#try:
-	#	if not TimestampAndEnableLTV(input_path + 'tiger.pdf',
+	#	if not TimestampAndEnableLTV(input_path + 'waiver.pdf',
 	#		input_path + 'GlobalSignRootForTST.cer',
 	#		input_path + 'signature.jpg',
-	#		output_path+ 'tiger_DocTimeStamp_LTV.pdf'):
+	#		output_path+ 'waiver_DocTimeStamp_LTV.pdf'):
 	#		result = False
 	#except Exception as e:
 	#	print(e.args)
